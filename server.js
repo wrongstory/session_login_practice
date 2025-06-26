@@ -50,26 +50,41 @@ app.use(express.json());
 // 1️⃣. 요구사항에 맞도록 session 옵션을 설정해 주세요. (총 4가지)
 app.use(
   session({
-    // 암호화, 열쇠 역할을 하는 문자열 설정
-    // 요청이 들어왔을 때 변경되는 사항이 없는 경우 저장하지 않도록 설정
-    // 요청이 들어왔을 때 내용이 비어있는 경우 저장하지 않도록 설정
-    // 쿠키 이름을 session_id로 변경
+    secret: "my-secret-key", // 암호화, 열쇠 역할을 하는 문자열 설정
+    resave: false, // 요청이 들어왔을 때 변경되는 사항이 없는 경우 저장하지 않도록 설정
+    saveUninitialized: false, // 요청이 들어왔을 때 내용이 비어있는 경우 저장하지 않도록 설정
+    name: "session_id", // 쿠키 이름을 session_id로 변경
+    cookie: {
+      httpOnly: true,
+      secure: false, // 배포 시에는 true로 변경 (HTTPS 환경에서만 쿠키 전송)
+      maxAge: 1000 * 60 * 60, // 1시간
+    },
   })
 );
 
 // POST 요청 (로그인 요청시 보내는 메소드)
 app.post("/", (req, res) => {
   // 2️⃣. 요청 바디에서 전달받은 값을 구조분해 할당을 사용하여 관리하세요.
-  const {} = req.body;
+  console.log(req.body);
+  const { userId, userPassword } = req.body;
+  if (!userId || !userPassword) {
+    return res.status(400).send("아이디와 비밀번호를 모두 입력해주세요.");
+  }
   // 3️⃣. (find 메서드를 사용하여) users의 정보와 사용자가 입력한 정보를 비교하여 일치하는 회원이 존재하는지 확인하는 로직을 작성하세요.
-  const userInfo = users.find();
+  const userInfo = users.find(
+    (user) => user.user_id === userId && user.user_password === userPassword
+  );
 
   if (!userInfo) {
     res.status(401).send("로그인 실패");
   } else {
     // 유저가 존재하는 경우 user의 id 정보를 세션에 저장
     req.session.userId = userInfo.user_id;
-    res.send("⭐️세션 생성 완료!");
+    res.json({
+      message: "로그인 성공",
+      user_name: userInfo.user_name,
+      user_info: userInfo.user_info,
+    });
   }
 });
 
@@ -77,14 +92,21 @@ app.post("/", (req, res) => {
 app.get("/", (req, res) => {
   const userInfo = users.find((el) => el.user_id === req.session.userId);
   // json 형식으로 내보내기
+  console.log(userInfo);
   return res.json(userInfo);
 });
 
 // DELETE 요청
 app.delete("/", (req, res) => {
   // 4️⃣. 세션 내 정보를 삭제하는 메소드를 작성하세요.
-  // 5️⃣. 쿠키를 삭제하는 메소드를 작성하세요.
-  res.send("🧹세션 삭제 완료");
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).send("세션 삭제 실패");
+    }
+    // 5️⃣. 쿠키를 삭제하는 메소드를 작성하세요.
+    res.clearCookie("session_id"); // 쿠키 이름이 'session_id'일 경우
+    res.send("🧹세션 삭제 완료");
+  });
 });
 
 app.listen(3000, () => console.log("서버 실행 ..."));

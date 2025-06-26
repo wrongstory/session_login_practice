@@ -51,8 +51,16 @@ function renderLoginForm() {
 // 로그인 버튼을 클릭하는 경우 post 요청 보낸 후 get 요청
 loginButton.onclick = () => {
   login()
-    .then(() => getUserInfo())
-    .then((res) => renderUserInfo(res.data));
+    .then((res) => {
+      renderUserInfo({
+        user_name: res.data.user_name,
+        user_info: res.data.user_info,
+      });
+    })
+    .catch((err) => {
+      alert("로그인 실패");
+      console.error(err);
+    });
 };
 
 // 로그아웃 버튼을 클릭하는 경우
